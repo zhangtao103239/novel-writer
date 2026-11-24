@@ -326,6 +326,7 @@ function highlightLine(line) {
   while (i < n) {
     let hit = null;
     for (const r of HL_RULES) {
+      if (!r.re) continue;      // hl-hot 在算出高频词之前是 null（或本文件没有高频词），跳过
       r.re.lastIndex = i;
       const m = r.re.exec(line);
       if (m && m.index === i && m[0].length) { hit = { cls: r.cls, text: m[0] }; break; }
