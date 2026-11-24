@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>写作台</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<!-- 最左侧活动栏 -->
+<nav id="activityBar">
+  <div class="act on" title="资源管理器">&#9776;</div>
+  <div class="act" title="章节">&#10070;</div>
+  <div class="act" title="Git">&#9670;</div>
+</nav>
+
+<aside id="side">
+  <div class="brand">资源管理器</div>
+
+  <div class="repo" id="repoBox">
+    <span id="repoName" title="">（未选择）</span>
+    <button id="btnRepo" title="切换 git 仓库">…</button>
+  </div>
+
+  <div class="sec">文件</div>
+  <ul id="fileList" class="list"></ul>
+
+  <div class="sec">源代码管理</div>
+  <div class="git">
+    <div id="gitHead" class="git-head">—</div>
+    <div class="row">
+      <button data-git="fetch">抓取</button>
+      <button data-git="pull">拉取</button>
+      <button data-git="push">推送</button>
+    </div>
+    <input id="commitMsg" placeholder="提交信息，回车提交" autocomplete="off">
+    <button id="btnCommit" class="primary">提交全部改动</button>
+    <pre id="gitOut"></pre>
+  </div>
+</aside>
+
+<aside id="chapBar">
+  <div class="sec">章节 <span id="chapCount" class="muted"></span></div>
+  <ul id="chapList" class="list"></ul>
+</aside>
+
+<main>
+  <!-- 标签页 -->
+  <div id="tabBar">
+    <div class="tab on">
+      <span class="dot"></span>
+      <span id="fileName">未打开文件</span>
+      <span class="tabx">×</span>
+    </div>
+  </div>
+
+  <header>
+    <div class="stats">
+      <span id="statNow">本章 —</span>
+      <span id="statTotal" class="muted">全书 —</span>
+    </div>
+    <div class="modes" id="modeBar">
+      <button data-mode="edit">编辑</button>
+      <button data-mode="preview">预览</button>
+    </div>
+  </header>
+
+  <div id="workspace" class="mode-edit">
+    <div id="editorWrap">
+      <div id="scroller">
+        <div id="stack">
+          <pre id="hl" aria-hidden="true"><code id="hlCode"></code></pre>
+          <textarea id="editor" spellcheck="false" placeholder="// 选择左侧的文件开始写作…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div id="previewWrap"><article id="preview"></article></div>
+  </div>
+
+  <div id="notice" class="notice hidden"></div>
+
+  <div id="statusBar">
+    <span class="sb-item sb-accent" id="sbBranch">main</span>
+    <span class="sb-item" id="saveState"></span>
+    <span class="sb-item" id="footInfo"></span>
+    <span class="sb-spacer"></span>
+    <span class="sb-item" id="hint">Ctrl+S 保存 · Ctrl+Alt+←/→ 切章</span>
+    <span class="sb-item">UTF-8</span>
+    <span class="sb-item">LF</span>
+    <span class="sb-item" id="sbMode">纯文本</span>
+  </div>
+</main>
+
+<script src="/vendor/marked.min.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
