@@ -12,6 +12,8 @@ const el = {
   footInfo: $('#footInfo'), notice: $('#notice'),
   gitHead: $('#gitHead'), gitOut: $('#gitOut'),
   sbBranch: $('#sbBranch'), sbMode: $('#sbMode'),
+  scmBar: $('#scmBar'), changeList: $('#changeList'), commitList: $('#commitList'),
+  changeCount: $('#changeCount'), scmBadge: $('#scmBadge'),
   commitMsg: $('#commitMsg'), btnCommit: $('#btnCommit'),
 };
 
@@ -552,16 +554,61 @@ function scheduleGitRefresh() {
 async function refreshGit() {
   try {
     const s = await api('/api/git/status');
-    if (el.sbBranch) el.sbBranch.textContent = `git · ${s.branch}`;
-    const ab = (s.ahead || s.behind)
-      ? ` ↑${s.ahead} ↓${s.behind}` : '';
+    const ab = (s.ahead || s.behind) ? `  ↑${s.ahead} ↓${s.behind}` : '';
     el.gitHead.innerHTML = `<b>${s.branch}</b>${ab}` +
-      (s.dirty ? ` · <b>${s.dirty}</b> 个改动` : ' · 干净');
-    const lines = [];
-    if (s.files.length) lines.push(s.files.slice(0, 12).join('\n'));
-    lines.push('— 最近提交 —');
-    lines.push(s.log.slice(0, 6).join('\n'));
-    el.gitOut.textContent = lines.join('\n');
+      (s.dirty ? `  ·  <b>${s.dirty}</b> 个改动` : '  ·  干净');
+    if (el.sbBranch) el.sbBranch.textContent = `git · ${s.branch}`;
+
+    // 角标：改动数量
+    if (el.scmBadge) {
+      el.scmBadge.textContent = String(s.dirty);
+      el.scmBadge.classList.toggle('hidden', !s.dirty);
+    }
+
+    // 更改列表：每行一个文件（状态字母 + 路径）
+    if (el.changeList) {
+      el.changeList.textContent = '';
+      for (const line of s.files) {
+        const st = (line.slice(0, 2).trim() || '?')[0];
+        const pth = line.slice(3).replace(/^"|"$/g, '');
+        const li = document.createElement('li');
+        li.title = pth;
+        const b = document.createElement('span');
+        b.className = 'st st-' + st.toUpperCase();
+        b.textContent = st.toUpperCase();
+        const t = document.createElement('span');
+        t.className = 'pth';
+        t.textContent = pth;
+        li.appendChild(b); li.appendChild(t);
+        // 点改动文件：是文本就直接打开
+        if (/\.(txt|md|markdown)$/i.test(pth)) {
+          li.style.cursor = 'pointer';
+          li.onclick = () => openFile(pth);
+        }
+        el.changeList.appendChild(li);
+      }
+      if (el.changeCount) el.changeCount.textContent = String(s.dirty);
+    }
+
+    // 最近提交
+    if (el.commitList) {
+      el.commitList.textContent = '';
+      for (const line of s.log.slice(0, 10)) {
+        const m = line.match(/^([0-9a-f]{7,})\s+(.*)$/);
+        const li = document.createElement('li');
+        if (m) {
+          const h = document.createElement('span');
+          h.className = 'h';
+          h.textContent = m[1];
+          li.appendChild(h);
+          li.appendChild(document.createTextNode(m[2]));
+          li.title = line;
+        } else {
+          li.textContent = line;
+        }
+        el.commitList.appendChild(li);
+      }
+    }
   } catch (e) {
     el.gitHead.textContent = 'git 不可用：' + e.message;
   }
@@ -623,6 +670,8 @@ async function boot() {
     if (!cfg.valid) { notice('仓库无效：' + cfg.repo + '，点「换」重新选择'); return; }
     renderFiles(cfg.files);
 
+    setView(localStorage.getItem('nw.view') === 'scm' ? 'scm' : 'explorer');
+
     const last = localStorage.getItem('nw.lastFile');
     const pick = cfg.files.find((f) => f.path === last) || pickDefaultFile(cfg.files);
     if (pick) await openFile(pick.path);
@@ -643,6 +692,20 @@ el.editor.addEventListener('compositionend', () => {
 });
 el.editor.addEventListener('mouseup', () => { el.statNow.textContent = el.statNow.textContent.replace(/ · 选中.*$/, '') + selStats(); });
 
+function setView(v) {
+  document.body.classList.toggle('view-scm', v === 'scm');
+  el.scmBar.classList.toggle('hidden', v !== 'scm');
+  document.querySelectorAll('#activityBar .act').forEach((a) => {
+    a.classList.toggle('on', a.dataset.view === v);
+  });
+  localStorage.setItem('nw.view', v);
+  if (v === 'scm') refreshGit();
+}
+
+document.querySelectorAll('#activityBar .act').forEach((a) => {
+  a.onclick = () => setView(a.dataset.view);
+});
+
 document.querySelectorAll('.modes button').forEach((b) => {
   b.onclick = () => setMode(b.dataset.mode);
 });
@@ -650,7 +713,9 @@ document.querySelectorAll('[data-git]').forEach((b) => {
   b.onclick = () => gitAction(b.dataset.git);
 });
 el.btnCommit.onclick = doCommit;
-el.commitMsg.addEventListener('keydown', (e) => { if (e.key === 'Enter') doCommit(); });
+el.commitMsg.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); doCommit(); }
+});
 
 el.btnRepo.onclick = async () => {
   const p = prompt('git 仓库路径', state.repo);

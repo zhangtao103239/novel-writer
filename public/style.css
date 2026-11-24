@@ -410,3 +410,80 @@ header {
 ::-webkit-scrollbar-thumb:hover { background: rgba(160, 160, 160, .6); }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-corner { background: transparent; }
+
+/* ---------- 活动栏角标 / 视图切换 ---------- */
+#activityBar .act { position: relative; }
+.badge {
+  position: absolute;
+  top: 6px; right: 8px;
+  min-width: 14px; height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 9.5px;
+  line-height: 14px;
+  text-align: center;
+}
+.badge.hidden { display: none; }
+body.view-scm #side,
+body.view-scm #chapBar { display: none; }
+
+/* ---------- 源代码管理视图 ---------- */
+#scmBar {
+  width: 268px;
+  flex: 0 0 268px;
+  background: var(--bg-side);
+  border-right: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#scmBar.hidden { display: none; }
+
+.scm-head { padding: 0 12px 8px; display: flex; flex-direction: column; gap: 7px; }
+.scm-branch { font-size: 11.5px; color: var(--fg-dim); word-break: break-all; }
+.scm-head .row { display: flex; gap: 4px; }
+.scm-head .row button { flex: 1; background: var(--bg-input); color: var(--fg); }
+.scm-head .row button:hover { background: #4a4a4a; }
+
+.list.changes li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--fg-dim);
+  padding: 3px 10px 3px 12px;
+}
+.list.changes li::before { content: none; }
+.list.changes li:hover { background: var(--bg-hover); color: var(--fg); }
+.list.changes .st { flex: 0 0 auto; width: 12px; text-align: center; font-weight: 700; font-size: 11px; }
+.st-M { color: #e2c08d; }
+.st-A { color: #73c991; }
+.st-D { color: #f14c4c; }
+.st-R { color: #73c991; }
+.st-U, .st-Q { color: #858585; }
+.list.changes .pth { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+
+.scm-commit { padding: 6px 12px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); }
+#commitMsg {
+  width: 100%;
+  resize: vertical;
+  min-height: 54px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--bg-input);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  outline: none;
+}
+#commitMsg:focus { border-color: var(--accent); }
+#commitMsg::placeholder { color: #7a7a7a; }
+
+.list.commits { flex: 0 1 auto; max-height: 30vh; }
+.list.commits li { font-size: 11.5px; padding: 3px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list.commits li::before { content: none; }
+.list.commits .h { color: #6a9955; margin-right: 6px; font-size: 10.5px; }

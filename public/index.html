@@ -9,9 +9,10 @@
 
 <!-- 最左侧活动栏 -->
 <nav id="activityBar">
-  <div class="act on" title="资源管理器">&#9776;</div>
-  <div class="act" title="章节">&#10070;</div>
-  <div class="act" title="Git">&#9670;</div>
+  <div class="act on" data-view="explorer" title="资源管理器">&#9776;</div>
+  <div class="act" data-view="scm" title="源代码管理">
+    &#9670;<span id="scmBadge" class="badge hidden">0</span>
+  </div>
 </nav>
 
 <aside id="side">
@@ -25,23 +26,38 @@
   <div class="sec">文件</div>
   <ul id="fileList" class="list"></ul>
 
-  <div class="sec">源代码管理</div>
-  <div class="git">
-    <div id="gitHead" class="git-head">—</div>
-    <div class="row">
-      <button data-git="fetch">抓取</button>
-      <button data-git="pull">拉取</button>
-      <button data-git="push">推送</button>
-    </div>
-    <input id="commitMsg" placeholder="提交信息，回车提交" autocomplete="off">
-    <button id="btnCommit" class="primary">提交全部改动</button>
-    <pre id="gitOut"></pre>
-  </div>
 </aside>
 
 <aside id="chapBar">
   <div class="sec">章节 <span id="chapCount" class="muted"></span></div>
   <ul id="chapList" class="list"></ul>
+</aside>
+
+<aside id="scmBar" class="hidden">
+  <div class="brand">源代码管理</div>
+
+  <div class="scm-head">
+    <div class="scm-branch">
+      <span id="gitHead" class="git-head">—</span>
+    </div>
+    <div class="row">
+      <button data-git="fetch" title="抓取远程更新（不改工作区）">抓取</button>
+      <button data-git="pull" title="拉取并变基">拉取</button>
+      <button data-git="push" title="推送到远程">推送</button>
+    </div>
+  </div>
+
+  <div class="sec">更改 <span id="changeCount" class="muted"></span></div>
+  <ul id="changeList" class="list changes"></ul>
+
+  <div class="scm-commit">
+    <textarea id="commitMsg" rows="3" placeholder="提交信息（Ctrl+Enter 提交）"></textarea>
+    <button id="btnCommit" class="primary">&#10003; 提交全部改动</button>
+    <pre id="gitOut"></pre>
+  </div>
+
+  <div class="sec">最近提交</div>
+  <ul id="commitList" class="list commits"></ul>
 </aside>
 
 <main>
