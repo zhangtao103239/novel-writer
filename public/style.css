@@ -535,3 +535,4 @@ body.view-scm #chapBar { display: none; }
 .hl-v { color: #9cdcfe; }             /* 他们/对方 → 变量蓝 */
 .hl-o { color: #d7ba7d; font-weight: 600; }  /* 砰/啪/啊 → 常量土黄 */
 .hl-p { color: #7d7d7d; }             /* 中文标点 → 淡灰 */
+

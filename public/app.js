@@ -33,6 +33,8 @@ const state = {
   previewTimer: null,
   rev: 0,            // 输入版本号，用于判断保存期间是否又有新输入
   composing: false,  // 输入法是否正在组字（候选窗开着）
+  hotWords: [],      // 当前高亮的高频词
+  wcToken: null,
   editStart: 0,      // 编辑器内容对应全文的区间 [editStart, editEnd)
   editEnd: 0,
 };
@@ -295,6 +297,8 @@ const HL_RULES = [
   { cls: 'hl-c', re: /（[^）\n]{1,60}）|\([^)\n]{1,60}\)/y },
   // **加粗** → 关键字蓝
   { cls: 'hl-b', re: /\*\*[^*\n]{1,80}\*\*/y },
+  // 高频词（动态生成）→ 亮青 + 虚线下划线
+  { cls: 'hl-hot', re: null },
   // 「道」类对话动词 → 函数黄
   { cls: 'hl-f', re: /(?:低声|高声|沉声|冷声|轻声|厉声|笑着|冷笑|苦笑)?(?:说道|问道|答道|笑道|喝道|叫道|叹道|怒道|骂道|应道|回道|心道|暗道|心想|暗想|寻思|沉吟|摇头|点头|皱眉|抱拳|拱手|开口)/y },
   // 时间/转折/语气 → 控制流紫
@@ -358,6 +362,82 @@ function renderHighlight() {
   el.hlCode.innerHTML = parts.join('\n') + '\n ';
 }
 
+
+/* ---------------- 高频词自动高亮 ---------------- */
+// 用浏览器内置的 Intl.Segmenter 做中文分词（Chrome 87+ / Node 16+ 自带 ICU），零依赖。
+const FUNC_WORDS = new Set([
+  '自己', '现在', '已经', '时候', '什么', '这样', '那样', '一个', '没有', '这些', '那些',
+  '这个', '那个', '我们', '他们', '你们', '她们', '咱们', '可是', '然后', '于是', '而且',
+  '还是', '就是', '不是', '可以', '不能', '怎么', '因为', '所以', '如果', '虽然', '只是',
+  '不过', '应该', '似乎', '仿佛', '一直', '里面', '出来', '起来', '过来', '下来', '上来',
+  '出去', '进去', '回来', '回去', '有些', '有点', '一些', '一下', '一样', '一般', '地方',
+  '东西', '事情', '的话', '之后', '之前', '以后', '以前', '这里', '那里', '哪里', '这时',
+  '他的', '她的', '我的', '你的', '其他', '其它', '自己', '一样', '一般', '这种', '那种',
+  '那时', '此时', '当时', '同时', '以及', '或者', '还有', '并且', '其中', '所有', '全部',
+]);
+
+/** 统计高频词（2~6 字的中文词），按出现次数排序 */
+function analyzeWords(text) {
+  const SCAN_MAX = 200000;
+  const src = text.length > SCAN_MAX ? text.slice(0, SCAN_MAX) : text;
+  const counts = new Map();
+
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    const seg = new Intl.Segmenter('zh-Hans', { granularity: 'word' });
+    for (const part of seg.segment(src)) {
+      if (!part.isWordLike) continue;
+      const w = part.segment;
+      if (w.length < 2 || w.length > 6) continue;
+      if (!/^[\u4e00-\u9fa5]+$/.test(w)) continue;
+      if (FUNC_WORDS.has(w)) continue;
+      counts.set(w, (counts.get(w) || 0) + 1);
+    }
+  } else {
+    // 兜底：2/3 字组合频率
+    for (const run of (src.match(/[\u4e00-\u9fa5]{2,}/g) || [])) {
+      for (let i = 0; i + 1 < run.length; i++) {
+        const g2 = run.substr(i, 2);
+        counts.set(g2, (counts.get(g2) || 0) + 1);
+      }
+    }
+  }
+
+  const minCount = Math.max(6, Math.round(src.length / 6000));   // 大约每 6 千字至少 1 次
+  const list = [...counts].filter(([, n]) => n >= minCount).sort((a, b) => b[1] - a[1]);
+  const out = [];
+  for (const [w, n] of list) {
+    if (out.some((o) => o.w.includes(w) && o.n >= n * 0.8)) continue;   // 去掉被包含的短词
+    out.push({ w, n });
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+
+function rebuildHotRule() {
+  const rule = HL_RULES.find((r) => r.cls === 'hl-hot');
+  if (!rule) return;
+  const words = state.hotWords.slice().sort((a, b) => b.length - a.length);
+  rule.re = words.length
+    ? new RegExp(words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'y')
+    : null;
+}
+
+/** 打开文件后在后台跑一次：把最常重复的词标成亮青色，提醒换词 */
+function refreshHotWords() {
+  if (!state.file || !state.content) return;
+  const token = { cancelled: false };
+  if (state.wcToken) state.wcToken.cancelled = true;
+  state.wcToken = token;
+  setTimeout(() => {
+    if (token.cancelled) return;
+    const terms = analyzeWords(state.content);
+    if (token.cancelled) return;
+    state.hotWords = terms.map((t) => t.w);
+    rebuildHotRule();
+    renderHighlight();
+  }, 250);
+}
+
 let hlPending = false;
 function scheduleHighlight() {
   if (hlPending) return;
@@ -408,10 +488,15 @@ async function openFile(rel) {
     : '');
   [...el.fileList.children].forEach((li) => li.classList.toggle('on', li.dataset.path === rel));
 
+  state.hotWords = [];
+  rebuildHotRule();
+  if (state.wcToken) state.wcToken.cancelled = true;
+
   const md = isMarkdown(rel);
   el.modeBar.classList.toggle('hidden', !md);
   if (el.sbMode) el.sbMode.textContent = md ? 'Markdown' : '纯文本';
   setMode(md ? 'preview' : 'edit');
+  refreshHotWords();   // 后台词频统计 → 高频词自动高亮
 
   // 缓存命中：秒开
   if (chapters) {
