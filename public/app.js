@@ -14,6 +14,8 @@ const el = {
   sbBranch: $('#sbBranch'), sbMode: $('#sbMode'),
   scmBar: $('#scmBar'), changeList: $('#changeList'), commitList: $('#commitList'),
   changeCount: $('#changeCount'), scmBadge: $('#scmBadge'),
+  diffBar: $('#diffBar'), diffTitle: $('#diffTitle'), diffStat: $('#diffStat'),
+  diffBody: $('#diffBody'), btnCloseDiff: $('#btnCloseDiff'),
   commitMsg: $('#commitMsg'), btnCommit: $('#btnCommit'),
 };
 
@@ -285,12 +287,26 @@ function notice(msg) {
 
 /* ---------------- 假语法高亮 ---------------- */
 const HL_RULES = [
+  // 引号内容 → 字符串橙
   { cls: 'hl-s', re: /“[^”\n]{0,300}”|「[^」\n]{0,300}」|『[^』\n]{0,300}』/y },
+  // 《书名》 → 类型青
   { cls: 'hl-t', re: /《[^》\n]{0,80}》/y },
+  // 括号补充 → 注释绿
   { cls: 'hl-c', re: /（[^）\n]{1,60}）|\([^)\n]{1,60}\)/y },
+  // **加粗** → 关键字蓝
   { cls: 'hl-b', re: /\*\*[^*\n]{1,80}\*\*/y },
-  { cls: 'hl-n', re: /[0-9]{1,6}(?:\.[0-9]+)?/y },
-  { cls: 'hl-k', re: /突然|忽然|陡然|猛然|但是|然而|因此|所以|因为|如果|已经|仿佛|似乎|竟然|终于|原来|果然|只是|不过|竟然/y },
+  // 「道」类对话动词 → 函数黄
+  { cls: 'hl-f', re: /(?:低声|高声|沉声|冷声|轻声|厉声|笑着|冷笑|苦笑)?(?:说道|问道|答道|笑道|喝道|叫道|叹道|怒道|骂道|应道|回道|心道|暗道|心想|暗想|寻思|沉吟|摇头|点头|皱眉|抱拳|拱手|开口)/y },
+  // 时间/转折/语气 → 控制流紫
+  { cls: 'hl-k', re: /忽然|突然|猛然|猛地|陡然|蓦然|刹时|刹那间|一瞬间|转眼间|登时|顿时|立刻|马上|随即|随后|片刻|半晌|许久|终于|竟然|居然|果然|仍旧|依然|甚至|然而|但是|只是|不过|因此|所以|因为|如果|虽然|况且|何况|反而|何况/y },
+  // 代词/指代 → 变量蓝
+  { cls: 'hl-v', re: /他们|她们|我们|你们|咱们|自己|彼此|对方|此人|那人|这人|众人|旁人/y },
+  // 数字 + 量词 → 数值绿
+  { cls: 'hl-n', re: /[0-9０-９]{1,6}(?:\.[0-9]+)?[年月日天岁次个人里尺丈招成层分秒步声]?|[一二三四五六七八九十百千两]{1,3}(?:招|式|人|成|岁|年|月|日|天|里|丈|尺|步)/y },
+  // 拟声/感叹 → 常量色
+  { cls: 'hl-o', re: /砰|啪|轰|咚|哐|唰|嗖|嘶|嗤|啊|咦|哼|嘿|哈/y },
+  // 中文标点 → 淡灰（让版面像代码）
+  { cls: 'hl-p', re: /[，。、；：！？…—]/y },
 ];
 const HL_MAX = 60000;   // 超过 6 万字的章节不做逐字扫描，直接原文输出
 
@@ -431,6 +447,7 @@ async function openFile(rel) {
 
 function openChapter(i, keepTrailing) {
   if (i < 0 || i >= state.chapters.length) return;
+  if (state.mode === 'diff') closeDiff();
   if (state.dirty) saveNow(true);
   state.cur = i;
   const c = state.chapters[i];
@@ -551,6 +568,57 @@ function scheduleGitRefresh() {
   gitTimer = setTimeout(refreshGit, 2000);
 }
 
+let diffPrevMode = 'edit';
+
+function classifyDiffLine(line) {
+  if (line.startsWith('+++') || line.startsWith('---') || line.startsWith('diff ') ||
+      line.startsWith('index ') || line.startsWith('new file') || line.startsWith('deleted file')) return 'meta';
+  if (line.startsWith('@@')) return 'hunk';
+  if (line.startsWith('+')) return 'add';
+  if (line.startsWith('-')) return 'del';
+  return 'ctx';
+}
+
+async function showDiff(path) {
+  try {
+    const d = await api('/api/git/diff?path=' + encodeURIComponent(path));
+    const lines = (d.diff || '').split('\n');
+    let add = 0, del = 0;
+    const frag = document.createDocumentFragment();
+    for (const line of lines) {
+      const cls = classifyDiffLine(line);
+      if (cls === 'add') add++;
+      if (cls === 'del') del++;
+      const span = document.createElement('span');
+      span.className = 'ln ' + cls;
+      span.textContent = line;
+      frag.appendChild(span);
+    }
+    el.diffBody.textContent = '';
+    el.diffBody.appendChild(frag);
+    el.diffTitle.textContent = '差异 · ' + path;
+    el.diffStat.innerHTML = add || del
+      ? `<span class="add">+${add}</span>  <span class="del">−${del}</span>`
+      : '（没有文本差异）';
+    if (!d.diff) el.diffBody.textContent = '这个文件相对 HEAD 没有可显示的文本差异。';
+    diffPrevMode = state.mode;
+    state.mode = 'diff';
+    el.workspace.className = 'mode-diff';
+    el.diffBar.classList.remove('hidden');
+    el.diffBody.parentElement.scrollTop = 0;
+    el.editor.blur();
+  } catch (e) {
+    notice('查看差异失败：' + e.message);
+  }
+}
+
+function closeDiff() {
+  el.diffBar.classList.add('hidden');
+  el.diffBody.textContent = '';
+  const m = (diffPrevMode === 'preview' && isMarkdown(state.file)) ? 'preview' : 'edit';
+  setMode(m);
+}
+
 async function refreshGit() {
   try {
     const s = await api('/api/git/status');
@@ -580,11 +648,10 @@ async function refreshGit() {
         t.className = 'pth';
         t.textContent = pth;
         li.appendChild(b); li.appendChild(t);
-        // 点改动文件：是文本就直接打开
-        if (/\.(txt|md|markdown)$/i.test(pth)) {
-          li.style.cursor = 'pointer';
-          li.onclick = () => openFile(pth);
-        }
+        // 点改动文件 → 看差异（双击标题再看文件）
+        li.style.cursor = 'pointer';
+        li.title = pth + '\n单击查看差异';
+        li.onclick = () => showDiff(pth);
         el.changeList.appendChild(li);
       }
       if (el.changeCount) el.changeCount.textContent = String(s.dirty);
@@ -713,6 +780,7 @@ document.querySelectorAll('[data-git]').forEach((b) => {
   b.onclick = () => gitAction(b.dataset.git);
 });
 el.btnCommit.onclick = doCommit;
+if (el.btnCloseDiff) el.btnCloseDiff.onclick = closeDiff;
 el.commitMsg.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); doCommit(); }
 });

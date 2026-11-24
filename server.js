@@ -226,6 +226,32 @@ async function api(req, res, url) {
     });
   }
 
+  if (p === '/api/git/diff' && req.method === 'GET') {
+    const rel = url.searchParams.get('path') || '';
+    const abs = safeJoin(repo, rel);
+    // 相对 HEAD 的差异（含已暂存 + 未暂存）
+    const d = await git(['-c', 'core.quotepath=false', 'diff', '--no-color', '-U3', 'HEAD', '--', rel], repo);
+    if (d.stdout) {
+      return sendJson(res, 200, { path: rel, diff: d.stdout, kind: 'modified' });
+    }
+    // 可能是未跟踪的新文件：整文件按新增展示
+    try {
+      const st = await fsp.stat(abs);
+      if (st.isFile() && st.size <= 2 * 1024 * 1024) {
+        const content = await fsp.readFile(abs, 'utf8');
+        const lines = content.split('\n');
+        const body = lines.slice(0, 2000).map((l) => '+' + l).join('\n');
+        return sendJson(res, 200, {
+          path: rel,
+          kind: 'added',
+          diff: `--- /dev/null\n+++ b/${rel}\n@@ 新文件，共 ${lines.length} 行 @@\n` + body +
+                (lines.length > 2000 ? `\n@@ 仅显示前 2000 行 @@` : ''),
+        });
+      }
+    } catch (_) {}
+    return sendJson(res, 200, { path: rel, diff: '', kind: 'none' });
+  }
+
   if (p === '/api/git/commit' && req.method === 'POST') {
     const body = JSON.parse(await readBody(req) || '{}');
     const msg = String(body.message || '').trim();

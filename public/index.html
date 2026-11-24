@@ -81,6 +81,12 @@
     </div>
   </header>
 
+  <div id="diffBar" class="hidden">
+    <span class="diff-title" id="diffTitle">差异</span>
+    <span class="diff-stat" id="diffStat"></span>
+    <button id="btnCloseDiff">返回编辑</button>
+  </div>
+
   <div id="workspace" class="mode-edit">
     <div id="editorWrap">
       <div id="scroller">
@@ -91,6 +97,7 @@
       </div>
     </div>
     <div id="previewWrap"><article id="preview"></article></div>
+    <div id="diffWrap"><pre id="diffBody"></pre></div>
   </div>
 
   <div id="notice" class="notice hidden"></div>

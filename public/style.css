@@ -487,3 +487,47 @@ body.view-scm #chapBar { display: none; }
 .list.commits li { font-size: 11.5px; padding: 3px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .list.commits li::before { content: none; }
 .list.commits .h { color: #6a9955; margin-right: 6px; font-size: 10.5px; }
+
+/* ---------- 差异视图 ---------- */
+#diffBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-editor);
+  font-size: 12px;
+}
+#diffBar.hidden { display: none; }
+.diff-title { color: #ffffff; font-weight: 600; }
+.diff-stat { color: var(--fg-muted); font-size: 11.5px; flex: 1 1 auto; }
+.diff-stat .add { color: #73c991; }
+.diff-stat .del { color: #f14c4c; }
+
+#diffWrap { display: none; overflow: auto; flex: 1 1 100%; }
+#workspace.mode-diff #diffWrap { display: block; }
+#workspace.mode-diff #editorWrap,
+#workspace.mode-diff #previewWrap { display: none; }
+
+#diffBody {
+  margin: 0;
+  padding: 12px 18px 40vh;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg);
+  white-space: pre;
+}
+#diffBody .ln { display: block; }
+#diffBody .add { color: #9cdc9c; background: rgba(115, 201, 145, .12); }
+#diffBody .del { color: #f0a0a0; background: rgba(241, 76, 76, .12); }
+#diffBody .hunk { color: #569cd6; }
+#diffBody .meta { color: var(--fg-muted); }
+#diffBody .ctx { color: var(--fg-dim); }
+
+/* 新增高亮语义色 */
+.hl-f { color: #dcdcaa; }             /* 说道/笑道/心想 → 函数黄 */
+.hl-v { color: #9cdcfe; }             /* 他们/对方 → 变量蓝 */
+.hl-o { color: #d7ba7d; font-weight: 600; }  /* 砰/啪/啊 → 常量土黄 */
+.hl-p { color: #7d7d7d; }             /* 中文标点 → 淡灰 */
