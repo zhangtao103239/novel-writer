@@ -302,7 +302,11 @@ header {
   overflow: hidden;
 }
 #editor::placeholder { color: #5a5a5a; }
-#editor::selection { background: var(--sel); }
+/* 选中背景要半透明：编辑框文字是透明的，彩色文字在下层 #hl，
+   实色背景会把它盖住导致看不见字 */
+#editor::selection { background: rgba(70, 120, 180, 0.32); }
+#editor::-moz-selection { background: rgba(70, 120, 180, 0.32); }
+#preview ::selection { background: rgba(70, 120, 180, 0.45); }
 
 /* 假语法高亮配色（VS Code Dark+ 语义色）*/
 .hl-h { color: #dcdcaa; font-weight: 600; }           /* 章节标题 → 函数黄 */
